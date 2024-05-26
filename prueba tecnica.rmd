@@ -1,0 +1,316 @@
+---
+title: "Prueba técnica"
+description: |
+  Respuesta y desarrollo de los ejercicios establecidos, para la posición de BA Sr.
+author:
+  - name: Jorge Valente Hernández
+    url: https://github.com/Jorge-hercas
+    affiliation: R-conomics
+    affiliation_url: https://r-conomics.netlify.app/course/
+date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# PART 1
+
+You are a BA working for a startup that has one credit product called Contigo. Depending on risk, the customer will receive:
+
+1. Contigo A, a 1,000 peso loan to be paid in full after one month with 15% interest. This product is given to high risk customers.
+
+2. Contigo B, a 2,000 peso loan to be paid in full after one month with 10% interest. This product is given to low risk customers.
+
+Past debt delinquency (DQ) rates have determined the interest rates for the Contigo product. However, it is estimated that the monthly DQ rate for Contigo A will be 13.5% and 8% for Contigo B, throughout this year.
+Ignoring the worsening of DQ rates, this startup has an ambitious growth plan for the year. At month 1, the company had a total of 5,000 Contigo A customers, expected to grow at a rate of 25% month over month. Contigo B has the largest share of customers, 10,000 in total. But with a very competitive market for premium loans, Contigo B is expected to grow at a 10% month over month rate throughout the year.
+The operation of this startup scales proportionately to its customer base, with negligible fixed expenses. The current operative monthly cost per account sits at 30 pesos .
+The startup is concerned that the change in DQ rates and the aggressive expansion may reduce profitability in the following months, so they asked you to make a forecast on the net income of its operation (ignoring taxes) in the next 12 months.
+
+## Questions 
+
+1. What factors may be against the profitability of the startup? What should we look at in an analysis
+of the net income for the following months?
+
+2. Is this startup going to be profitable during the next 12 months? What are the major trends driving
+changes in net income? Suggestion: Provide a model for net income and forecast it for the next 12 months. Hint: losses come from the total debt not being repaid, and revenue comes from collected interest. We will only consider operation costs as expenses.
+
+3. What changes are required to sustain the business not only throughout the year but in the long run? Build a proposal of changes to main startup KPIs to achieve this goal. Discuss what difficulties the startup may find in applying your recommendation.
+
+## Answers
+
+### Factors against profitability
+
+Mainly, that the effect of the past debt delinquency rate plus the operating cost is higher than the interest rate charged, which will cause losses very quickly
+
+Despite not being a very high operating cost, the rapid expansion of clients is also a danger, since the sum of costs per client will increase rapidly
+
+Low interest rates, since despite having a low default rate, they may not be enough to cover the rest of the costs and losses for higher risk clients.
+
+### Profitability
+
+No, the startup will be only profitable during the next 3 months, later the loses from `Contigo_A` credits will overcome the profits of `Contigo_B`
+
+1. Formulas used:
+
+$$
+Gross revenue = (Customers * Loan) * (1 + Interest Rate)
+$$
+
+$$
+DQ \; Losses = (Customers * Loan) * DQ_Rate
+$$
+
+$$
+Operating \; costs = Customers * Operating \; cost
+$$
+$$
+Net\;revenue = Gross \; revenue - DQ_Losses - Operating \; Costs
+$$
+
+2. Python code used:
+
+```{python, eval = FALSE, echo = TRUE}
+import pandas as pd
+pd.set_option('display.float_format', lambda x: '%.2f' % x)
+
+# Parámetros
+params = {
+    'Contigo_A': {'loan_amount': 1000, 'interest_rate': 0.15, 
+    'dq_rate': 0.135, 'initial_customers': 5000, 'growth_rate': 0.25},
+    'Contigo_B': {'loan_amount': 2000, 'interest_rate': 0.10, 
+    'dq_rate': 0.08, 'initial_customers': 10000, 'growth_rate': 0.10},
+    'operational_cost_per_account': 30,
+    'months': 12
+}
+
+# Data frame para almacenar resultados
+results = pd.DataFrame(index=range(params['months']))
+
+# Crear un ciclo en un rango de 12 (meses del año)
+for product in ['Contigo_A', 'Contigo_B']:
+    initial_customers = params[product]['initial_customers']
+    growth_rate = params[product]['growth_rate']
+    customers = [initial_customers]
+
+    for month in range(1, params['months']):
+        customers.append(customers[-1] * (1 + growth_rate))
+    
+    results[f'{product}_customers'] = customers
+    results[f'{product}_loan_amount'] = params[product]['loan_amount']
+    results[f'{product}_interest_rate'] = params[product]['interest_rate']
+    results[f'{product}_dq_rate'] = params[product]['dq_rate']
+    results[f'{product}_gross_income'] = results[f'{product}_customers'] * 
+    params[product]['loan_amount'] * params[product]['interest_rate']
+    results[f'{product}_dq_loss'] = results[f'{product}_customers'] * 
+    params[product]['loan_amount'] * params[product]['dq_rate']
+    results[f'{product}_operational_cost'] = results[f'{product}_customers'] * 
+    params['operational_cost_per_account']
+    results[f'{product}_net_income'] = results[f'{product}_gross_income'] - 
+    results[f'{product}_dq_loss'] - results[f'{product}_operational_cost']
+
+# Calcular ingresos netos totales
+results['total_net_income'] = results['Contigo_A_net_income'] + 
+results['Contigo_B_net_income']
+
+#results
+
+results.to_excel("respuesta.xlsx")
+```
+
+
+```{r, echo=FALSE}
+library(reactable)
+library(reactablefmtr)
+library(dplyr)
+
+options(scipen = 999)
+
+x<-
+  readxl::read_excel("respuesta.xlsx") |> 
+  rename(Mes = ...1) |> 
+  mutate_if(is.numeric, round, digits = 2) |> 
+  relocate(
+    c("Contigo_A_net_income", "Contigo_B_net_income", "total_net_income"),
+    .after = Mes
+  ) |> 
+  mutate(Mes = Mes +1)
+
+  
+x |> 
+  reactable(
+    theme = espn(),
+    pagination = F,
+    defaultColDef = colDef(
+      format = colFormat(separators = T)
+    ),
+    columns = list(
+      Contigo_A_net_income = colDef(
+        style = function(value) {
+          color <- if (value > 0) {
+            "#008000"
+          } else if (value < 0) {
+            "#e00000"
+          }
+          list(fontWeight = 600, color = color)
+        }
+      ),
+      Contigo_B_net_income = colDef(
+        style = function(value) {
+          color <- if (value > 0) {
+            "#008000"
+          } else if (value < 0) {
+            "#e00000"
+          }
+          list(fontWeight = 600, color = color)
+        }
+      ),
+      total_net_income = colDef(
+        style = function(value) {
+          color <- if (value > 0) {
+            "#008000"
+          } else if (value < 0) {
+            "#e00000"
+          }
+          list(fontWeight = 600, color = color)
+        }
+      )
+    )
+  ) 
+```
+
+
+### Changes and strategies to maintain long term profitability
+
+The most obvious changes in the first place are: the improvement in risk evaluation, which allows reducing delinquency in credits, in addition to a diversification of products, considering that for a startup to have only two financial products (one of them being high risk) means that it can go to negative numbers quickly. Another change is to look for strategies to reduce the operating cost even minimally, since a small amount of reduction on a large scale can make a big difference (Example: Total cost for 5000 customers: `5000*30 = 150000`, if we reduce cost on 1 peso, then `5000*29 = 145000`, so the difference is 5000).
+
+Now, the reduction of operating costs through the use of technology and automation processes also implies a strong initial (and monthly) investment in cloud services, mainly, so in the first months profits will be significantly reduced, having even lost. This strategy is for long term implementation.
+
+Considering that spending on technology may not be an immediately viable option, then we have to look at a strategy on the side of customer expansion.
+
+To maximize profits in the short term, we could simply establish a linear maximization problem subject to certain restrictions (total clients, budget, etc.) with which we can calculate the maximum number of clients of each type of credit that allows us to obtain the greatest profit. possible, for example.
+
+
+# PART 2
+
+The Credit department has decided to prioritize collections on Contigo A customers, since they have the largest DQ rate. A collections analyst has determined that a DQ rate of 10% will be enough to render this customer segment profitable. The team has decided to apply immediate action from month 1 and is looking for a collection strategy to recover (at least!) 175 of the 675 accounts that went delinquent, out of the starting 5,000 Contigo A accounts.
+One idea is to collect by calling the customer. Using the previous collection results, the data science team has created a model to estimate contactability (i.e. the probability of reaching the customer successfully by calling) and has delivered their calculations to you (please, consult the spreadsheet called contactabilty_scores). The collections team estimates that the customer will pay around three quarters of the time after being contacted, and it has no chance to pay if they never connect the call. Calling the customer is quite expensive! Operations has determined that a phone call campaign costs around 30 pesos per DQ customer, regardless of the contact result.
+
+## Questions
+
+1. Assuming that we launch this campaign to all of the 675 DQ customers, a manager asks you to
+compute its probable result, asking you to deliver estimates on the following KPIs:
+
+  a. Recovered accounts (accounts we get out of delinquency).
+  b. Recovered total debt.
+  c. Revenue coming from collected interest. (Note that the total debt collected is not included
+  in revenue, why?).
+  d. Total campaign cost.
+  e. DQ losses coming from uncollected total debt.
+  f. Collections income.
+  
+Deliver your calculation in a spreadsheet, and attach a SQL code computing these results using
+the contactability score data provided by the data science team.
+
+2. What is the impact delivered on overall business performance by this campaign? To answer this
+question, we provide the results of month 1 without collections in the table below. Using the results from the previous question and the data coming from the table, provide a justification for applying or not this collection strategy.
+
+Discuss some possible improvements to this campaign.
+
+```{r, echo=FALSE}
+tibble(
+  column = c("Month", "Accounts", "DQ accounts", "Interest revenue", "DQ losses", "Operative cost", "Net income"),
+  val = c("1", "5,000", "675", "$648,750.00", "$675,000.00", "150,000", "-$176,250.00")
+) |> 
+  t() |> 
+  as_tibble() |> 
+  janitor::row_to_names(row_number = 1) |> 
+  knitr::kable()
+```
+
+
+## Answers
+
+### Results for KPIs's:
+
+| KPI                          | Valor                  |
+|------------------------------|------------------------|
+| Cuentas recuperadas          | 212.02425              |
+| Deuda total recuperada       | 212,024.25 pesos       |
+| Ingresos intereses cobrados  | 31,803.64 pesos        |
+| Costo total campaña          | 20,250 pesos           |
+| Pérdidas DQ                  | 462,975.75 pesos       |
+| Ingresos por cobranzas       | 11,553.64 pesos        |
+
+Total debt is not considered as GMV because it's not a profit, we are only recovering the money we originally lent
+
+The calc formulas are allocated in the spreadsheet called `calculos excel.xlsx`. The formulas are:
+
+The equivalent SQL code to get this calcs is the following:
+
+```{sql connection=x, eval = FALSE, echo = TRUE}
+select cuentas_recuperadas, monto_recuperado, interes_ganado,
+	   monto_recuperado+interes_ganado monto_total,perdidas,
+       interes_ganado-costo_camp ingreso_por_cobranza
+from (select sum(contactability_score)*0.75 cuentas_recuperadas,
+			(sum(contactability_score)*0.75)*1000 monto_recuperado,
+			(sum(contactability_score)*0.75)*150 interes_ganado,
+            (675-sum(contactability_score)*0.75)*1000 perdidas,
+			675*30 costo_camp
+	  from recuperaciones) a
+```
+
+Note: To make this exercise more realistic i created a table in a local SQL database with the following code:
+
+```{sql connection=x, eval = FALSE, echo = TRUE}
+CREATE TABLE recuperaciones(
+  ID INT AUTO_INCREMENT PRIMARY KEY,
+  contactability_score DECIMAL(12,4),
+  total_debt DECIMAL(12,4),
+  interest DECIMAL(12,4)
+);
+```
+
+Then id load the data:
+
+```{r, eval=FALSE, echo = TRUE}
+import pandas as pd
+import sqlite3
+
+data = pd.read_csv("contactability_scores.csv")
+
+conexion = sqlite3.connect('mi_connexion')
+
+cursor = conexion.cursor()
+
+for index, row in data.iterrows():
+    query = f"""
+    INSERT INTO recuperaciones (contactability_score, total_debt, interest)
+    VALUES ({row['contactability_score']}, 1000, 150);
+    """
+    cursor.execute(query)
+
+conexion.commit()
+
+conexion.close()
+```
+
+### Impact from this campaign
+
+Adding the amount obtained by the campaign plus the interest on that amount, we have:
+
+$$
+-176,250.00 + 243,827.89 = 79,131.52 
+$$
+
+Which gives us a positive income, so the campaign would be successful so that the startup can maintain itself in the short term, although we must consider that this is only money recovered for the most part, since only $11,553.64 was revenue from interest rate
+
+### Performing this campaign
+
+Logically, the first strategy to use in this case will be to focus on those clients who have a greater probability of answering the call, which would reduce operating costs, by not losing that cost on users who may not answer, however, only 257 Users have a probability greater than or equal to 50% of answering, so focusing only on those with high probabilities is not the entire solution to the problem. In this case, a linear maximization problem (with matrix algebra) can also be applied to determine more precisely the number of calls to make to customers, that is, ensuring that we obtain the maximum income with the minimum possible operating cost.
+
+In addition to the above, it is also possible to use more communication channels at a lower cost to reach more customers successfully, for example, sending mass emails through the API of the startup's official email manager. Now, assuming that we do not want to increase the operational cost for using the API (which generally has a daily limit of 500-1000 emails), in this case we can do a customer segmentation, to focus on those with a response rate higher, which although it does not increase the probability of payment, it does increase the probability of receiving a response through this channel, which would indirectly make the use of mass emails more effective.
+
+
+
